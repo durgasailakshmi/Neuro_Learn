@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react';
+import Bot from "@/app/components/Bot";
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
@@ -50,6 +51,8 @@ export default function Home() {
         {loading ? 'Fetching File...' : 'Download File'}
       </button>
       {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      <Bot />
     </div>
   );
 }
