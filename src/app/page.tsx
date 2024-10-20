@@ -1,24 +1,34 @@
-"use client"
+"use client";
 import { useState } from 'react';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<any>(null);
 
-  const fetchFileIdAndDownload = async () => {
+  const fetchAndDownloadFile = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Call the API route
-      const response = await fetch('/api/download-file'); // Call your server-side API
+      // Call the API route to start the multi-step process
+      const response = await fetch('/api/download-file');
 
       if (!response.ok) {
+        throw new Error('Failed to start file download process');
+      }
+
+      const data = await response.json(); // Expecting a URL from the server response
+
+      // Use the final URL to download the file
+      const downloadUrl = data.url;
+      const fileResponse = await fetch(downloadUrl);
+
+      if (!fileResponse.ok) {
         throw new Error('Failed to download file');
       }
 
       // Convert response to Blob and trigger download
-      const blob = await response.blob();
+      const blob = await fileResponse.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -36,7 +46,7 @@ export default function Home() {
   return (
     <div>
       <h1>Download File from Canvas</h1>
-      <button onClick={fetchFileIdAndDownload} disabled={loading}>
+      <button onClick={fetchAndDownloadFile} disabled={loading}>
         {loading ? 'Fetching File...' : 'Download File'}
       </button>
       {error && <p style={{ color: 'red' }}>{error}</p>}

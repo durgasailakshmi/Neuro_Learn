@@ -1,13 +1,60 @@
-
 import { NextResponse } from 'next/server';
 
 export async function GET() {
   const accessToken = '21139~ymt4hua3thvKJQU7aAVK87JzzGQwetvnLFJnABRcW2QhQBW2fPyT446xzuZBV73G'; // Replace with your actual Canvas token
-  const fileIdApiUrl = `https://csulb.instructure.com/files/17995162/download?download_frd=1&verifier=BJWz137C0ZTcM8SiDBzhWgRvvBw6eRPeoC7AU6Ec`; // Canvas API URL
-
+  const baseUrl = 'https://csulb.instructure.com/api/v1';
+  
   try {
-    // Fetch the file from Canvas API
-    const fileResponse = await fetch(fileIdApiUrl, {
+    // Step 1: Fetch the list of courses
+    const coursesResponse = await fetch(`${baseUrl}/courses`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!coursesResponse.ok) {
+      throw new Error('Failed to fetch courses');
+    }
+
+    const courses = await coursesResponse.json();
+    const selectedCourseId = courses[0].id; // Select the first course or any specific course
+
+    // Step 2: Fetch modules for the selected course
+    const modulesResponse = await fetch(`${baseUrl}/courses/${selectedCourseId}/modules`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!modulesResponse.ok) {
+      throw new Error('Failed to fetch modules');
+    }
+
+    const modules = await modulesResponse.json();
+    const selectedModuleId = modules[0].id; // Select the first module or any specific module
+
+    // Step 3: Fetch items for the selected module
+    const moduleItemsResponse = await fetch(`${baseUrl}/courses/${selectedCourseId}/modules/${selectedModuleId}/items`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!moduleItemsResponse.ok) {
+      throw new Error('Failed to fetch module items');
+    }
+
+    const moduleItems = await moduleItemsResponse.json();
+    const selectedItemUrl = moduleItems[0].url; // Select the first file or any specific file
+
+    // Step 4: Fetch the file download URL
+    const fileResponse = await fetch(selectedItemUrl, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -16,20 +63,13 @@ export async function GET() {
     });
 
     if (!fileResponse.ok) {
-      throw new Error('Failed to fetch file from Canvas');
+      throw new Error('Failed to fetch file URL');
     }
 
-    // Get the file blob and stream it back to the client
-    const fileData = await fileResponse.blob();
-    const buffer = await fileData.arrayBuffer(); // Convert Blob to ArrayBuffer
+    const fileData = await fileResponse.json();
 
-    // Return the response to trigger download
-    return new Response(Buffer.from(buffer), {
-      headers: {
-        'Content-Type': 'application/pdf', // Modify based on the file type
-        'Content-Disposition': 'attachment; filename="downloaded_file.pdf"',
-      },
-    });
+    // Return the file download URL to the client
+    return NextResponse.json({ url: fileData.url });
   } catch (error) {
     console.error('Error fetching file:', error);
     return NextResponse.json({ error: 'Failed to download file' }, { status: 500 });
