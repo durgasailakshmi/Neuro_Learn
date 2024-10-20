@@ -3,31 +3,35 @@ import { useState } from 'react';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchAndDownloadZip = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Call the API route to start the process of downloading a ZIP file
+      // Call the API route to generate and download the zip file
       const response = await fetch('/api/download-file');
 
       if (!response.ok) {
-        throw new Error('Failed to start file download process');
+        throw new Error('Failed to generate zip file');
       }
 
-      // Get the ZIP file as a Blob
+      // Convert response to Blob and trigger download
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'canvas_files.zip'); // Set the default ZIP filename
+      link.setAttribute('download', 'canvas_files.zip'); // Download the zip file
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
     } catch (err) {
-      setError("Error downloading file");
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unknown error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -35,9 +39,9 @@ export default function Home() {
 
   return (
     <div>
-      <h1>Download All Files as ZIP</h1>
+      <h1>Download Course Files as Zip</h1>
       <button onClick={fetchAndDownloadZip} disabled={loading}>
-        {loading ? 'Fetching Files...' : 'Download ZIP'}
+        {loading ? 'Generating Zip...' : 'Download Zip'}
       </button>
       {error && <p style={{ color: 'red' }}>{error}</p>}
     </div>
