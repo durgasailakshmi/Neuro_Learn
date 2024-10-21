@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import JSZip from 'jszip';
 import fetch from 'node-fetch';
+import { bucket } from '../../../firebaseAdmin'; // Import the bucket directly
 
 // Define a TypeScript type for a course
 type Course = {
@@ -28,10 +28,10 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export async function GET() {
   const accessToken = '21139~ymt4hua3thvKJQU7aAVK87JzzGQwetvnLFJnABRcW2QhQBW2fPyT446xzuZBV73G'; // Replace with your actual Canvas token
   const baseUrl = 'https://csulb.instructure.com/api/v1';
-  
+
   try {
     console.log('Fetching courses...');
-    
+
     // Step 1: Fetch the list of courses
     const coursesResponse = await fetch(`${baseUrl}/courses`, {
       method: 'GET',
@@ -51,14 +51,10 @@ export async function GET() {
 
     console.log(`Fetched ${courses.length} courses`);
 
-    // Create a new JSZip instance to hold the zip structure
-    const zip = new JSZip();
-
     // Step 2: Loop through each course
     for (const course of courses) {
       const courseId = course.id;
       console.log(`Fetching modules for course: ${courseId}`);
-      const courseFolder = zip.folder(course.name || `Course_${courseId}`); // Create course folder
 
       // Fetch modules for the current course
       const modulesResponse = await fetch(`${baseUrl}/courses/${courseId}/modules`, {
@@ -73,7 +69,7 @@ export async function GET() {
         console.warn(`Skipping course ${courseId}: Failed to fetch modules. Error: ${modulesResponse.statusText}`);
         continue; // Skip this course and continue with the next one
       }
-      
+
       // Cast the response to a Module[] type
       const modules = await modulesResponse.json() as Module[];
       console.log(`Fetched ${modules.length} modules for course: ${courseId}`);
@@ -82,7 +78,6 @@ export async function GET() {
       for (const module of modules) {
         const moduleId = module.id;
         console.log(`Fetching module items for module: ${moduleId} in course ${courseId}`);
-        const moduleFolder = courseFolder?.folder(module.name || `Module_${moduleId}`); // Create module subfolder
 
         // Delay between module fetches to avoid rate limiting
         await delay(1000); // 1 second delay
@@ -112,6 +107,7 @@ export async function GET() {
             console.log(`Fetching file metadata for item: ${item.id}`);
 
             // Delay between file fetches to avoid rate limiting
+            await delay(1000); // 1 second delay
 
             // Fetch the file metadata
             const fileResponse = await fetch(fileUrl, {
@@ -134,26 +130,24 @@ export async function GET() {
             const fileBlob = await fileContentResponse.blob();
             const fileBuffer = await fileBlob.arrayBuffer();
 
-            console.log(`Adding ${fileData.filename} to zip`);
-            moduleFolder?.file(fileData.filename, fileBuffer); // Add file to module folder in zip
+            // Step 5: Upload the file to Firebase Storage
+            const fileName = `${course.name}/${module.name}/${fileData.filename}`; // Organize by course/module in Firebase Storage
+            const fileRef = bucket.file(fileName); // Reference to the file in Firebase Storage
+
+            console.log(`Uploading ${fileData.filename} to Firebase...`);
+            await fileRef.save(Buffer.from(fileBuffer), {
+              contentType: fileBlob.type,
+            });
+            console.log(`Uploaded ${fileData.filename} to Firebase`);
           }
         }
       }
     }
 
-    console.log('Successfully created zip file');
-
-    // Step 5: Generate the zip file and return it as a response
-    const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
-
-    return new NextResponse(zipContent, {
-      headers: {
-        'Content-Type': 'application/zip',
-        'Content-Disposition': 'attachment; filename="canvas_files.zip"',
-      },
-    });
+    console.log('All files uploaded to Firebase Storage');
+    return NextResponse.json({ message: 'All files uploaded to Firebase Storage' });
   } catch (error) {
-    console.error('Error generating zip file:', error);
-    return NextResponse.json({ error: 'Failed to generate zip file' }, { status: 500 });
+    console.error('Error uploading files to Firebase:', error);
+    return NextResponse.json({ error: 'Failed to upload files to Firebase' }, { status: 500 });
   }
 }
