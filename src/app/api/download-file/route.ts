@@ -79,8 +79,7 @@ export async function GET() {
         const moduleId = module.id;
         console.log(`Fetching module items for module: ${moduleId} in course ${courseId}`);
 
-        // Delay between module fetches to avoid rate limiting
-        await delay(1000); // 1 second delay
+        // Delay between module fetches to avoid rate limiting// 1 second delay
 
         // Fetch items for the current module
         const moduleItemsResponse = await fetch(`${baseUrl}/courses/${courseId}/modules/${moduleId}/items`, {
@@ -106,9 +105,6 @@ export async function GET() {
             const fileUrl = item.url;
             console.log(`Fetching file metadata for item: ${item.id}`);
 
-            // Delay between file fetches to avoid rate limiting
-            await delay(1000); // 1 second delay
-
             // Fetch the file metadata
             const fileResponse = await fetch(fileUrl, {
               method: 'GET',
@@ -131,7 +127,7 @@ export async function GET() {
             const fileBuffer = await fileBlob.arrayBuffer();
 
             // Step 5: Upload the file to Firebase Storage
-            const fileName = `${course.name}/${module.name}/${fileData.filename}`; // Organize by course/module in Firebase Storage
+            const fileName = `${course.name}/${fileData.filename}`; // Organize by course/module in Firebase Storage
             const fileRef = bucket.file(fileName); // Reference to the file in Firebase Storage
 
             console.log(`Uploading ${fileData.filename} to Firebase...`);
